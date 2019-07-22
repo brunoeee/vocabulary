@@ -1,4 +1,5 @@
 import re
+from sqlalchemy.exc import IntegrityError
 from flask_restful import Resource, reqparse, abort
 from model import Book, db, Vocabulary, Word
 
@@ -66,29 +67,36 @@ class GenerateVocabularyControler(Resource):
         args = parser_abstract.parse_args()
         book_id = args['book_id']
         abstract = args['abstract']
-        
-        book = Book.query.filter_by(id=book_id).first()
-        if not book:
-            abort(404, message=f"book {book_id} doesn't exist")
-        if not book.parse_limitation:
-            abort(404, message=f"book {book_id} haven't parse_limitation")
-        
-        words_list = {}
-        parse_limitation = book.parse_limitation
-        for w in re.split(r'\W+', abstract):
-            if re.match(parse_limitation, w):
-                count = words_list.get(w, 0)
-                count = count + 1
-                words_list[w] = count
+        try:
+            book = Book.query.filter_by(id=book_id).first()
+            if not book:
+                abort(404, message=f"book {book_id} doesn't exist")
+            if not book.parse_limitation:
+                abort(404, message=f"book {book_id} haven't parse_limitation")
+            
+            words_list = {}
+            parse_limitation = book.parse_limitation
+            for w in re.split(r'\W+', abstract):
+                if re.match(parse_limitation, w):
+                    count = words_list.get(w, 0)
+                    count = count + 1
+                    words_list[w] = count
 
-        vocabulary = Vocabulary()
-        for w, count in words_list.items():
-            word = Word(
-                value = w,
-                frequency = count
-            )
-            vocabulary.words.append(word)
+            vocabulary = Vocabulary()
+            for w, count in words_list.items():
+                word = Word(
+                    value = w,
+                    frequency = count
+                )
+                vocabulary.words.append(word)
 
-        book.vocabularies.append(vocabulary)
-        db.session.commit()
-        return vocabulary.to_json(), 201          
+            book.vocabularies.append(vocabulary)
+            db.session.commit()
+            return vocabulary.to_json(), 201
+        except IntegrityError as error:
+            db.session.rollback()
+            if 'already exists' in repr(error._sql_message):
+                value = re.findall(r'\(value\)=\((.*)\) already exists', repr(error._sql_message))
+                abort(409, message=f"{value[0]} already exists")
+            abort(400)
+        return ''          

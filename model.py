@@ -8,7 +8,7 @@ class Book(db.Model):
     title = db.Column(db.String(80), unique=True, nullable=False)
     author = db.Column(db.String(120), nullable=False)
     language = db.Column(db.String(80), default="English")
-    parse_limitation = db.Column(db.String(80))
+    parse_limitation = db.Column(db.String(80), default=".*")
     isbn = db.Column(db.Integer, unique=True, nullable=False)
     vocabularies = db.relationship("Vocabulary", back_populates='book', cascade="all, delete-orphan")
 

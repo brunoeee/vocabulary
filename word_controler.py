@@ -45,6 +45,7 @@ class WordListControler(Resource):
             db.session.commit()
             return word.to_json(), 201          
         except IntegrityError as error:
+            db.session.rollback()
             if 'already exists' in repr(error._sql_message):
                 abort(409, message=f"{args['value']} already exists")
             abort(400)

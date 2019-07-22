@@ -1,8 +1,11 @@
 from flask_restful import Resource, reqparse, abort
-from model import Book, Vocabulary, db
+from model import Book, Vocabulary, Word, db
 
 parser = reqparse.RequestParser()
 parser.add_argument('book_id', required=True)
+
+parser_book_title = reqparse.RequestParser()
+parser_book_title.add_argument('book_title', required=True)
 
 class VocabularyControler(Resource):
     def get(self, vocabulary_id):
@@ -34,3 +37,26 @@ class VocabularyListControler(Resource):
         book.vocabularies.append(vocabulary)
         db.session.commit()
         return vocabulary.to_json(), 201          
+
+class VocabularybyTitleControler(Resource):
+    def get(self):
+        args = parser_book_title.parse_args()
+        book_title = args['book_title']
+        result_query = Vocabulary.query.join(Book).filter(Book.title == book_title).all()
+        vocabularies = [voc.to_json() for voc in result_query]
+        return vocabularies
+
+class The10MostAnd10LeastFrequentWordsControler(Resource):
+    def get(self, vocabulary_id):
+        result_10_most_query = Word.query.join(Vocabulary)\
+            .filter(Vocabulary.id == vocabulary_id)\
+            .order_by(Word.frequency.desc()).limit(10).all()
+        result_10_least_query = Word.query.join(Vocabulary)\
+            .filter(Vocabulary.id == vocabulary_id)\
+            .order_by(Word.frequency.asc()).limit(10).all()
+        result_10_most_words = []
+        result_10_least_words = []
+        for i in range(0,10):
+            result_10_most_words.append(result_10_most_query[i].to_json())
+            result_10_least_words.append(result_10_least_query[i].to_json())
+        return {'most': result_10_most_words, 'least': result_10_least_words}

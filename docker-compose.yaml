@@ -12,6 +12,23 @@ services:
       POSTGRES_DB: postgres
     volumes:
       - my_dbdata:/var/lib/postgresql/data
+  server:
+    build: .
+    image: app
+    environment:
+      - DATABASE_URI=postgres://postgres:postgres@db:5432/postgres
+    ports:
+      - "5000:5000"
+    command: sh -c './wait-for db:5432 -- python app.py'
+    depends_on:
+      - db
+  test:
+    image: app
+    environment:
+      - SERVER_URI=http://server:5000
+    command: sh -c './wait-for server:5000 -- python tests.py'
+    depends_on:
+      - server
 
 volumes:
   my_dbdata:
